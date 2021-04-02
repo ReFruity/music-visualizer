@@ -7,8 +7,9 @@ find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 add_executable(music_visualizer main.cpp)
+add_subdirectory("/Users/anton/portaudio/portaudio" BINARY)
 
 set(OpenCV_LIBS opencv_core opencv_imgproc opencv_highgui opencv_imgcodecs)
 
-# linking
 target_link_libraries(music_visualizer ${OpenCV_LIBS})
+target_link_libraries(music_visualizer portaudio_static)

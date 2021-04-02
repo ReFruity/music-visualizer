@@ -2,16 +2,16 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/types_c.h>
+#include <portaudio.h>
 
 int main() {
+    auto err = Pa_Initialize();
 
-    //create a gui window:
+    std::cout << err << std::endl;
+
     cv::namedWindow("Output",1);
-
-    //initialize a 120X350 matrix of black pixels:
     cv::Mat output = cv::Mat::zeros( 120, 350, CV_8UC3 );
 
-    //write text on the matrix:
     putText(output,
             "Hello World :)",
             cvPoint(15,70),
@@ -20,11 +20,11 @@ int main() {
             cvScalar(0,255,0),
             4);
 
-    //display the image:
     imshow("Output", output);
-
-    //wait for the user to press any key:
     cv::waitKey(0);
+
+    err = Pa_Terminate();
+    std::cout << err << std::endl;
 
     std::cout << "Hello, World!" << std::endl;
     return 0;
