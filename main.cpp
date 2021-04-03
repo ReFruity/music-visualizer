@@ -8,24 +8,23 @@
 typedef std::complex<double> Complex;
 typedef std::valarray<Complex> CArray;
 
-typedef struct
-{
+typedef struct {
     float left_phase;
     float right_phase;
-}
-paData;
+} paData;
 
 static paData *data1;
 
 static int paCallback(const void *inputBuffer, void *outputBuffer,
                       unsigned long framesPerBuffer,
-                      const PaStreamCallbackTimeInfo* timeInfo,
+                      const PaStreamCallbackTimeInfo *timeInfo,
                       PaStreamCallbackFlags statusFlags,
-                      void *userData )
-{
+                      void *userData) {
     auto inputBufferFloat32 = (const float *) inputBuffer;
 
-    if (inputBuffer == nullptr) std::cout << "Input buffer is nullptr, listen to the sound of silence" << std::endl;
+    if (inputBuffer == nullptr) {
+        std::cout << "Input buffer is nullptr, listen to the sound of silence" << std::endl;
+    }
 
     for (int i = 0; i < framesPerBuffer; i++) {
         std::cout << *inputBufferFloat32++ << " ";
@@ -37,22 +36,18 @@ static int paCallback(const void *inputBuffer, void *outputBuffer,
 }
 
 // https://rosettacode.org/wiki/Fast_Fourier_transform#C.2B.2B
-void fft(CArray &x)
-{
+void fft(CArray &x) {
     // DFT
     unsigned int N = x.size(), k = N, n;
     double thetaT = 3.14159265358979323846264338328L / N;
     Complex phiT = Complex(cos(thetaT), -sin(thetaT)), T;
-    while (k > 1)
-    {
+    while (k > 1) {
         n = k;
         k >>= 1;
         phiT = phiT * phiT;
         T = 1.0L;
-        for (unsigned int l = 0; l < k; l++)
-        {
-            for (unsigned int a = l; a < N; a += n)
-            {
+        for (unsigned int l = 0; l < k; l++) {
+            for (unsigned int a = l; a < N; a += n) {
                 unsigned int b = a + k;
                 Complex t = x[a] - x[b];
                 x[a] += x[b];
@@ -62,9 +57,8 @@ void fft(CArray &x)
         }
     }
     // Decimate
-    unsigned int m = (unsigned int)log2(N);
-    for (unsigned int a = 0; a < N; a++)
-    {
+    unsigned int m = (unsigned int) log2(N);
+    for (unsigned int a = 0; a < N; a++) {
         unsigned int b = a;
         // Reverse bits
         b = (((b & 0xaaaaaaaa) >> 1) | ((b & 0x55555555) << 1));
@@ -72,8 +66,7 @@ void fft(CArray &x)
         b = (((b & 0xf0f0f0f0) >> 4) | ((b & 0x0f0f0f0f) << 4));
         b = (((b & 0xff00ff00) >> 8) | ((b & 0x00ff00ff) << 8));
         b = ((b >> 16) | (b << 16)) >> (32 - m);
-        if (b > a)
-        {
+        if (b > a) {
             Complex t = x[a];
             x[a] = x[b];
             x[b] = t;
@@ -82,15 +75,14 @@ void fft(CArray &x)
 }
 
 int main() {
-    const Complex test[] = { 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0 };
+    const Complex test[] = {1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0};
     CArray data(test, 8);
 
     // forward fft
     fft(data);
 
     std::cout << "fft" << std::endl;
-    for (int i = 0; i < 8; ++i)
-    {
+    for (int i = 0; i < 8; ++i) {
         std::cout << data[i] << std::endl;
     }
 
@@ -99,13 +91,9 @@ int main() {
     std::cout << Pa_GetErrorText(err) << std::endl;
 
     int numDevices = Pa_GetDeviceCount();
-    if (numDevices < 0) {
-        printf( "ERROR: Pa_CountDevices returned 0x%x\n", numDevices );
-    }
-
     const PaDeviceInfo *deviceInfo;
-    for (int i=0; i < numDevices; i++)  {
-        deviceInfo = Pa_GetDeviceInfo( i );
+    for (int i = 0; i < numDevices; i++) {
+        deviceInfo = Pa_GetDeviceInfo(i);
         std::cout << i << " " << deviceInfo->name << " " << deviceInfo->defaultSampleRate << " "
                   << deviceInfo->maxInputChannels << " " << deviceInfo->maxOutputChannels << std::endl;
     }
@@ -127,15 +115,15 @@ int main() {
     //
     // std::cout << Pa_GetErrorText(err) << std::endl;
 
-    cv::namedWindow("Output",1);
-    cv::Mat output = cv::Mat::zeros( 120, 350, CV_8UC3 );
+    cv::namedWindow("Output", 1);
+    cv::Mat output = cv::Mat::zeros(120, 350, CV_8UC3);
 
     putText(output,
             "Hello World :)",
-            cvPoint(15,70),
+            cvPoint(15, 70),
             cv::FONT_HERSHEY_PLAIN,
             3,
-            cvScalar(0,255,0),
+            cvScalar(0, 255, 0),
             4);
 
     imshow("Output", output);
