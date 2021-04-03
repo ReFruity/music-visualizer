@@ -15,7 +15,17 @@ typedef struct {
 
 static paData *data1;
 
-static int paCallback(const void *inputBuffer, void *outputBuffer,
+CArray floatToComplex(const float *array, unsigned long size) {
+    Complex complexArray[size];
+
+    for (unsigned long i = 0; i < size; i++) {
+        complexArray[i] = array[i];
+    }
+
+    return CArray(complexArray, size);
+}
+
+int paCallback(const void *inputBuffer, void *outputBuffer,
                       unsigned long framesPerBuffer,
                       const PaStreamCallbackTimeInfo *timeInfo,
                       PaStreamCallbackFlags statusFlags,
@@ -74,7 +84,17 @@ void fft(CArray &x) {
     }
 }
 
-int main() {
+void test() {
+    float floatArray[5] = { 2.1, 3.0, 1.0, 0, 42.5};
+
+    auto complexArray = floatToComplex(floatArray, 5);
+
+    for (int i = 0; i < 5; i++) {
+        std::cout << complexArray[i] << " ";
+    }
+
+    std::cout << std::endl;
+
     const Complex test[] = {1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0};
     CArray data(test, 8);
 
@@ -83,8 +103,14 @@ int main() {
 
     std::cout << "fft" << std::endl;
     for (int i = 0; i < 8; ++i) {
-        std::cout << data[i] << std::endl;
+        std::cout << data[i] << " ";
     }
+
+    std::cout << std::endl;
+}
+
+int main() {
+    test();
 
     auto err = Pa_Initialize();
 
@@ -111,9 +137,9 @@ int main() {
 
     std::cout << Pa_GetErrorText(err) << std::endl;
 
-    // err = Pa_StartStream(stream);
-    //
-    // std::cout << Pa_GetErrorText(err) << std::endl;
+    err = Pa_StartStream(stream);
+
+    std::cout << Pa_GetErrorText(err) << std::endl;
 
     cv::namedWindow("Output", 1);
     cv::Mat output = cv::Mat::zeros(120, 350, CV_8UC3);
