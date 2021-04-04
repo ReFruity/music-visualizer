@@ -4,7 +4,7 @@
 void fft(CArray &x) {
     // DFT
     unsigned int N = x.size(), k = N, n;
-    double thetaT = 3.14159265358979323846264338328L / N;
+    double thetaT = PI / N;
     Complex phiT = Complex(cos(thetaT), -sin(thetaT)), T;
     while (k > 1) {
         n = k;

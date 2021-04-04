@@ -7,7 +7,7 @@
 #define WINDOW_WIDTH 1920
 #define WINDOW_HEIGHT 1080
 #define SAMPLE_RATE 44100
-#define BUFFER_SIZE 512
+#define BUFFER_SIZE 256
 #define ESCAPE_KEY 27
 #define GREEN cv::Scalar(0, 255, 0)
 #define WINDOW_NAME "Output"
@@ -15,6 +15,34 @@
 static CArray fftData(BUFFER_SIZE);
 
 static bool fftDataLock = false;
+
+float degreesToRadians(float x) {
+    return x * PI / 180.0;
+}
+
+float radiansToDegrees(float x) {
+    return x * 180.0 / PI;
+}
+
+cv::Point offset(const cv::Point &point, float r, float phi) {
+    auto radians = degreesToRadians(phi);
+    return cv::Point(point.x + r * cos(radians), point.y + r * sin(radians));
+}
+
+void drawRotatedRectangle(cv::Mat& image, const cv::Point &base, const cv::Size &rectangleSize, float rotationDegrees) {
+    auto AO = rectangleSize.width / 2.0;
+    auto AD = rectangleSize.height / 2.0;
+    auto pointA = offset(base, AO, 90 + rotationDegrees);
+    auto pointB = offset(base, AO, rotationDegrees - 90);
+    auto OD = sqrt(AO * AO + AD * AD);
+    auto theta = radiansToDegrees(asin(AO / OD));
+    auto pointD = offset(base, OD, theta + rotationDegrees);
+    auto pointC = offset(base, OD, rotationDegrees - theta);
+
+    cv::Point vertices[4] = { pointA, pointB, pointC, pointD };
+
+    cv::fillConvexPoly(image, vertices, 4, GREEN);
+}
 
 void drawFFT() {
     cv::Mat output = cv::Mat::zeros(WINDOW_HEIGHT, WINDOW_WIDTH, CV_8UC3);
@@ -25,6 +53,23 @@ void drawFFT() {
     // std::cout << std::endl;
 
     fftDataLock = true;
+
+    auto center = cv::Point(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
+    auto centerCircleRadius = 100;
+
+    // auto height = 1000;
+    // auto angle = 0;
+    // auto rectangleCenter = offset(center, centerCircleRadius, angle);
+    // auto size = cv::Size(20, height);
+    // drawRotatedRectangle(output, rectangleCenter, size, angle);
+
+    for (int i = 10; i < BUFFER_SIZE / 2; i++) {
+        auto height = abs(fftData[i].real() * 200);
+        auto angle = (i - 10) / 118.0 * 360.0;
+        auto rectangleCenter = offset(center, centerCircleRadius, angle);
+        auto size = cv::Size(1, height);
+        drawRotatedRectangle(output, rectangleCenter, size, angle);
+    }
 
     for (int i = 0; i < BUFFER_SIZE / 2; i++) {
         cv::Point point1(i * 10, WINDOW_HEIGHT);
@@ -76,9 +121,9 @@ void createAndStartPaInputStream() {
                   << deviceInfo->maxInputChannels << " " << deviceInfo->maxOutputChannels << std::endl;
     }
 
-    int device;
+    int device = 4;
 
-    std::cin >> device;
+    // std::cin >> device;
 
     PaStream *stream;
     PaStreamParameters inputParameters;
