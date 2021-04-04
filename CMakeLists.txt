@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
-add_executable(music_visualizer main.cpp)
+add_executable(music_visualizer main.cpp fft.hpp fft.cpp)
 add_subdirectory("/Users/anton/portaudio/portaudio" BINARY)
 
 set(OpenCV_LIBS opencv_core opencv_imgproc opencv_highgui opencv_imgcodecs)

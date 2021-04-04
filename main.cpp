@@ -1,11 +1,8 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include <opencv2/core/types_c.h>
 #include <portaudio.h>
-#include <valarray>
-#include <chrono>
-#include <thread>
+#include "fft.hpp"
 
 #define SAMPLE_RATE 44100
 #define BUFFER_SIZE 256
@@ -13,13 +10,12 @@
 #define GREEN cv::Scalar(0, 255, 0)
 #define WINDOW_NAME "Output"
 
-typedef std::complex<double> Complex;
-typedef std::valarray<Complex> CArray;
-
 static CArray fftData(BUFFER_SIZE);
 
+static bool fftDataLock = false;
+
 void drawFFT() {
-    cv::Mat output = cv::Mat::zeros(1080, 2500, CV_8UC3);
+    cv::Mat output = cv::Mat::zeros(1080, 2700, CV_8UC3);
 
     // putText(output,
     //         std::to_string(fftData[0].real()),
@@ -34,11 +30,15 @@ void drawFFT() {
     // }
     // std::cout << std::endl;
 
+    fftDataLock = true;
+
     for (int i = 0; i < BUFFER_SIZE; i++) {
         cv::Point point1(i * 10, 0);
         cv::Point point2(i * 10 + 5, fftData[i].real() * 1000);
         cv::rectangle(output, point1, point2, GREEN, cv::FILLED);
     }
+
+    fftDataLock = false;
 
     imshow(WINDOW_NAME, output);
 }
@@ -61,7 +61,11 @@ int paCallback(const void *inputBuffer, void *outputBuffer,
         std::cout << "Input buffer is nullptr, listen to the sound of silence" << std::endl;
     }
 
-    floatToComplex(inputBufferFloat32, framesPerBuffer, userDataCArray);
+    if (!fftDataLock) {
+        floatToComplex(inputBufferFloat32, framesPerBuffer, userDataCArray);
+    }
+
+    // fft(userDataCArray);
 
     // for (int i = 0; i < framesPerBuffer; i++) {
     //     std::cout << inputBufferFloat32[i] << " ";
@@ -71,45 +75,6 @@ int paCallback(const void *inputBuffer, void *outputBuffer,
     // drawFFT();
 
     return 0;
-}
-
-// https://rosettacode.org/wiki/Fast_Fourier_transform#C.2B.2B
-void fft(CArray &x) {
-    // DFT
-    unsigned int N = x.size(), k = N, n;
-    double thetaT = 3.14159265358979323846264338328L / N;
-    Complex phiT = Complex(cos(thetaT), -sin(thetaT)), T;
-    while (k > 1) {
-        n = k;
-        k >>= 1;
-        phiT = phiT * phiT;
-        T = 1.0L;
-        for (unsigned int l = 0; l < k; l++) {
-            for (unsigned int a = l; a < N; a += n) {
-                unsigned int b = a + k;
-                Complex t = x[a] - x[b];
-                x[a] += x[b];
-                x[b] = t * T;
-            }
-            T *= phiT;
-        }
-    }
-    // Decimate
-    unsigned int m = (unsigned int) log2(N);
-    for (unsigned int a = 0; a < N; a++) {
-        unsigned int b = a;
-        // Reverse bits
-        b = (((b & 0xaaaaaaaa) >> 1) | ((b & 0x55555555) << 1));
-        b = (((b & 0xcccccccc) >> 2) | ((b & 0x33333333) << 2));
-        b = (((b & 0xf0f0f0f0) >> 4) | ((b & 0x0f0f0f0f) << 4));
-        b = (((b & 0xff00ff00) >> 8) | ((b & 0x00ff00ff) << 8));
-        b = ((b >> 16) | (b << 16)) >> (32 - m);
-        if (b > a) {
-            Complex t = x[a];
-            x[a] = x[b];
-            x[b] = t;
-        }
-    }
 }
 
 void createAndStartPaInputStream() {
