@@ -7,14 +7,41 @@
 #include <chrono>
 #include <thread>
 
+#define SAMPLE_RATE 44100
 #define BUFFER_SIZE 256
 #define ESCAPE_KEY 27
 #define GREEN cv::Scalar(0, 255, 0)
+#define WINDOW_NAME "Output"
 
 typedef std::complex<double> Complex;
 typedef std::valarray<Complex> CArray;
 
 static CArray fftData(BUFFER_SIZE);
+
+void drawFFT() {
+    cv::Mat output = cv::Mat::zeros(1080, 2500, CV_8UC3);
+
+    // putText(output,
+    //         std::to_string(fftData[0].real()),
+    //         cvPoint(15, 70),
+    //         cv::FONT_HERSHEY_PLAIN,
+    //         3,
+    //         cvScalar(0, 255, 0),
+    //         4);
+
+    // for (int i = 0; i < BUFFER_SIZE; i++) {
+    //     std::cout << fftData[i].real() << " ";
+    // }
+    // std::cout << std::endl;
+
+    for (int i = 0; i < BUFFER_SIZE; i++) {
+        cv::Point point1(i * 10, 0);
+        cv::Point point2(i * 10 + 5, fftData[i].real() * 1000);
+        cv::rectangle(output, point1, point2, GREEN, cv::FILLED);
+    }
+
+    imshow(WINDOW_NAME, output);
+}
 
 void floatToComplex(const float *array, unsigned long size, CArray *output) {
     for (unsigned long i = 0; i < size; i++) {
@@ -40,6 +67,8 @@ int paCallback(const void *inputBuffer, void *outputBuffer,
     //     std::cout << inputBufferFloat32[i] << " ";
     // }
     // std::cout << std::endl;
+
+    // drawFFT();
 
     return 0;
 }
@@ -83,74 +112,7 @@ void fft(CArray &x) {
     }
 }
 
-void drawRectangle(cv::Mat &output) {
-
-}
-
-void drawFFT() {
-    cv::Mat output = cv::Mat::zeros(1080, 1920, CV_8UC3);
-
-    // putText(output,
-    //         std::to_string(fftData[0].real()),
-    //         cvPoint(15, 70),
-    //         cv::FONT_HERSHEY_PLAIN,
-    //         3,
-    //         cvScalar(0, 255, 0),
-    //         4);
-
-    // for (int i = 0; i < BUFFER_SIZE; i++) {
-    //     std::cout << fftData[i].real() << " ";
-    // }
-    // std::cout << std::endl;
-
-    for (int i = 0; i < BUFFER_SIZE; i++) {
-        cv::Point point1(i * 10, 0);
-        cv::Point point2(i * 10 + 5, fftData[i].real() * 1000);
-        cv::rectangle(output, point1, point2, GREEN, cv::FILLED);
-    }
-
-    imshow("Output", output);
-}
-
-void test() {
-    float floatArray[5] = { 2.1, 3.0, 1.0, 0, 42.5};
-    CArray complexArray(5);
-
-    floatToComplex(floatArray, 5, &complexArray);
-
-    for (int i = 0; i < 5; i++) {
-        std::cout << complexArray[i] << " ";
-    }
-
-    std::cout << std::endl;
-
-    const Complex test[] = {1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0};
-    CArray data(test, 8);
-
-    // forward fft
-    fft(data);
-
-    std::cout << "fft" << std::endl;
-    for (int i = 0; i < 8; ++i) {
-        std::cout << data[i] << " ";
-    }
-
-    std::cout << std::endl;
-
-    cv::namedWindow("Test", 1);
-
-    cv::Mat output = cv::Mat::zeros(120, 350, CV_8UC3);
-
-    cv::rectangle(output, cv::Point(0, 0), cv::Point(20, 20), cv::Scalar(0, 255, 255), cv::FILLED);
-
-    imshow("Test", output);
-
-    cv::waitKey(0);
-}
-
-int main() {
-    // test();
-
+void createAndStartPaInputStream() {
     auto err = Pa_Initialize();
 
     std::cout << Pa_GetErrorText(err) << std::endl;
@@ -169,8 +131,7 @@ int main() {
     inputParameters.channelCount = 1;
     inputParameters.device = 1;
     inputParameters.sampleFormat = paFloat32;
-    double sampleRate = 44100;
-    err = Pa_OpenStream(&stream, &inputParameters, nullptr, sampleRate, BUFFER_SIZE, paNoFlag,
+    err = Pa_OpenStream(&stream, &inputParameters, nullptr, SAMPLE_RATE, BUFFER_SIZE, paNoFlag,
                         paCallback, &fftData);
 
     std::cout << Pa_GetErrorText(err) << std::endl;
@@ -178,6 +139,66 @@ int main() {
     err = Pa_StartStream(stream);
 
     std::cout << Pa_GetErrorText(err) << std::endl;
+}
+
+void terminatePaStream() {
+    auto err = Pa_Terminate();
+    std::cout << Pa_GetErrorText(err) << std::endl;
+}
+
+void test() {
+    float floatArray[5] = { 2.1, 3.0, 1.0, 0, 42.5};
+    CArray complexArray(5);
+
+    floatToComplex(floatArray, 5, &complexArray);
+
+    for (int i = 0; i < 5; i++) {
+        std::cout << complexArray[i] << " ";
+    }
+
+    std::cout << std::endl;
+
+    const Complex test[] = {1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0};
+    CArray data(test, 8);
+
+    fft(data);
+
+    for (int i = 0; i < 8; ++i) {
+        std::cout << data[i] << " ";
+    }
+
+    std::cout << std::endl;
+
+    const Complex test2[] = {1, 2, 3, 4};
+    CArray data2(test2, 4);
+
+    fft(data2);
+
+    for (int i = 0; i < 4; ++i) {
+        std::cout << data2[i] << " ";
+    }
+
+    std::cout << std::endl;
+
+    cv::namedWindow("Test", 1);
+
+    cv::Mat output = cv::Mat::zeros(120, 350, CV_8UC3);
+
+    cv::rectangle(output, cv::Point(0, 0), cv::Point(20, 20), cv::Scalar(0, 255, 255), cv::FILLED);
+
+    imshow("Test", output);
+
+    cv::waitKey(0);
+
+    cv::destroyWindow("Test");
+}
+
+int main() {
+    // test();
+
+    cv::namedWindow(WINDOW_NAME, 1);
+
+    createAndStartPaInputStream();
 
     while(true) {
         drawFFT();
@@ -189,8 +210,7 @@ int main() {
         }
     }
 
-    err = Pa_Terminate();
-    std::cout << Pa_GetErrorText(err) << std::endl;
+    terminatePaStream();
 
     return 0;
 }
