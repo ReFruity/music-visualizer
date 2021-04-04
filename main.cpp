@@ -7,7 +7,9 @@
 #include <chrono>
 #include <thread>
 
-#define BUFFER_SIZE 64
+#define BUFFER_SIZE 256
+#define ESCAPE_KEY 27
+#define GREEN cv::Scalar(0, 255, 0)
 
 typedef std::complex<double> Complex;
 typedef std::valarray<Complex> CArray;
@@ -81,6 +83,35 @@ void fft(CArray &x) {
     }
 }
 
+void drawRectangle(cv::Mat &output) {
+
+}
+
+void drawFFT() {
+    cv::Mat output = cv::Mat::zeros(1080, 1920, CV_8UC3);
+
+    // putText(output,
+    //         std::to_string(fftData[0].real()),
+    //         cvPoint(15, 70),
+    //         cv::FONT_HERSHEY_PLAIN,
+    //         3,
+    //         cvScalar(0, 255, 0),
+    //         4);
+
+    // for (int i = 0; i < BUFFER_SIZE; i++) {
+    //     std::cout << fftData[i].real() << " ";
+    // }
+    // std::cout << std::endl;
+
+    for (int i = 0; i < BUFFER_SIZE; i++) {
+        cv::Point point1(i * 10, 0);
+        cv::Point point2(i * 10 + 5, fftData[i].real() * 1000);
+        cv::rectangle(output, point1, point2, GREEN, cv::FILLED);
+    }
+
+    imshow("Output", output);
+}
+
 void test() {
     float floatArray[5] = { 2.1, 3.0, 1.0, 0, 42.5};
     CArray complexArray(5);
@@ -105,23 +136,20 @@ void test() {
     }
 
     std::cout << std::endl;
+
+    cv::namedWindow("Test", 1);
+
+    cv::Mat output = cv::Mat::zeros(120, 350, CV_8UC3);
+
+    cv::rectangle(output, cv::Point(0, 0), cv::Point(20, 20), cv::Scalar(0, 255, 255), cv::FILLED);
+
+    imshow("Test", output);
+
+    cv::waitKey(0);
 }
 
 int main() {
-    test();
-
-    cv::namedWindow("Output", 1);
-    // cv::Mat output = cv::Mat::zeros(120, 350, CV_8UC3);
-    //
-    // putText(output,
-    //         "Hello World :)",
-    //         cvPoint(15, 70),
-    //         cv::FONT_HERSHEY_PLAIN,
-    //         3,
-    //         cvScalar(0, 255, 0),
-    //         4);
-    //
-    // imshow("Output", output);
+    // test();
 
     auto err = Pa_Initialize();
 
@@ -152,21 +180,11 @@ int main() {
     std::cout << Pa_GetErrorText(err) << std::endl;
 
     while(true) {
-        cv::Mat output = cv::Mat::zeros(120, 350, CV_8UC3);
-
-        putText(output,
-                std::to_string(fftData[0].real()),
-                cvPoint(15, 70),
-                cv::FONT_HERSHEY_PLAIN,
-                3,
-                cvScalar(0, 255, 0),
-                4);
-
-        imshow("Output", output);
+        drawFFT();
 
         int key = cv::waitKey(1);
 
-        if (key == 27) {
+        if (key == ESCAPE_KEY) {
             break;
         }
     }
