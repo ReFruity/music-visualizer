@@ -4,25 +4,20 @@
 #include <opencv2/core/types_c.h>
 #include <portaudio.h>
 #include <valarray>
+#include <chrono>
+#include <thread>
+
+#define BUFFER_SIZE 64
 
 typedef std::complex<double> Complex;
 typedef std::valarray<Complex> CArray;
 
-typedef struct {
-    float left_phase;
-    float right_phase;
-} paData;
+static CArray fftData(BUFFER_SIZE);
 
-static paData *data1;
-
-CArray floatToComplex(const float *array, unsigned long size) {
-    Complex complexArray[size];
-
+void floatToComplex(const float *array, unsigned long size, CArray *output) {
     for (unsigned long i = 0; i < size; i++) {
-        complexArray[i] = array[i];
+        output->operator[](i) = array[i];
     }
-
-    return CArray(complexArray, size);
 }
 
 int paCallback(const void *inputBuffer, void *outputBuffer,
@@ -31,16 +26,18 @@ int paCallback(const void *inputBuffer, void *outputBuffer,
                       PaStreamCallbackFlags statusFlags,
                       void *userData) {
     auto inputBufferFloat32 = (const float *) inputBuffer;
+    auto userDataCArray = (CArray *) userData;
 
     if (inputBuffer == nullptr) {
         std::cout << "Input buffer is nullptr, listen to the sound of silence" << std::endl;
     }
 
-    for (int i = 0; i < framesPerBuffer; i++) {
-        std::cout << *inputBufferFloat32++ << " ";
-    }
+    floatToComplex(inputBufferFloat32, framesPerBuffer, userDataCArray);
 
-    std::cout << std::endl;
+    // for (int i = 0; i < framesPerBuffer; i++) {
+    //     std::cout << inputBufferFloat32[i] << " ";
+    // }
+    // std::cout << std::endl;
 
     return 0;
 }
@@ -86,8 +83,9 @@ void fft(CArray &x) {
 
 void test() {
     float floatArray[5] = { 2.1, 3.0, 1.0, 0, 42.5};
+    CArray complexArray(5);
 
-    auto complexArray = floatToComplex(floatArray, 5);
+    floatToComplex(floatArray, 5, &complexArray);
 
     for (int i = 0; i < 5; i++) {
         std::cout << complexArray[i] << " ";
@@ -112,6 +110,19 @@ void test() {
 int main() {
     test();
 
+    cv::namedWindow("Output", 1);
+    // cv::Mat output = cv::Mat::zeros(120, 350, CV_8UC3);
+    //
+    // putText(output,
+    //         "Hello World :)",
+    //         cvPoint(15, 70),
+    //         cv::FONT_HERSHEY_PLAIN,
+    //         3,
+    //         cvScalar(0, 255, 0),
+    //         4);
+    //
+    // imshow("Output", output);
+
     auto err = Pa_Initialize();
 
     std::cout << Pa_GetErrorText(err) << std::endl;
@@ -131,9 +142,8 @@ int main() {
     inputParameters.device = 1;
     inputParameters.sampleFormat = paFloat32;
     double sampleRate = 44100;
-    unsigned long framesPerBuffer = 64;
-    err = Pa_OpenStream(&stream, &inputParameters, nullptr, sampleRate, framesPerBuffer, paNoFlag,
-                        paCallback, &data1);
+    err = Pa_OpenStream(&stream, &inputParameters, nullptr, sampleRate, BUFFER_SIZE, paNoFlag,
+                        paCallback, &fftData);
 
     std::cout << Pa_GetErrorText(err) << std::endl;
 
@@ -141,19 +151,25 @@ int main() {
 
     std::cout << Pa_GetErrorText(err) << std::endl;
 
-    cv::namedWindow("Output", 1);
-    cv::Mat output = cv::Mat::zeros(120, 350, CV_8UC3);
+    while(true) {
+        cv::Mat output = cv::Mat::zeros(120, 350, CV_8UC3);
 
-    putText(output,
-            "Hello World :)",
-            cvPoint(15, 70),
-            cv::FONT_HERSHEY_PLAIN,
-            3,
-            cvScalar(0, 255, 0),
-            4);
+        putText(output,
+                std::to_string(fftData[0].real()),
+                cvPoint(15, 70),
+                cv::FONT_HERSHEY_PLAIN,
+                3,
+                cvScalar(0, 255, 0),
+                4);
 
-    imshow("Output", output);
-    cv::waitKey(0);
+        imshow("Output", output);
+
+        int key = cv::waitKey(1);
+
+        if (key == 27) {
+            break;
+        }
+    }
 
     err = Pa_Terminate();
     std::cout << Pa_GetErrorText(err) << std::endl;
