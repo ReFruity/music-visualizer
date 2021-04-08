@@ -4,6 +4,11 @@
 #include <portaudio.h>
 #include "fft.hpp"
 
+#define CENTER_CIRCLE_RADIUS 100
+#define CIRCLE_COLUMN_WIDTH 2
+#define VERTICAL_COLUMN_WIDTH 10
+#define VERTICAL_COLUMN_SPACING 5
+#define SCALE 50
 #define LOG_BASE 10
 #define WINDOW_WIDTH 1920
 #define WINDOW_HEIGHT 1080
@@ -11,6 +16,7 @@
 #define BUFFER_SIZE 256
 #define ESCAPE_KEY 27
 #define GREEN cv::Scalar(0, 255, 0)
+#define COLOR GREEN
 #define WINDOW_NAME "Output"
 
 static CArray fftData(BUFFER_SIZE);
@@ -55,7 +61,7 @@ void convertToLogScale(CArray &array) {
 
 void absScale(CArray &array) {
     for (int i = 0; i < array.size(); i++) {
-        array[i] = Complex(abs(array[i].real()) * 100, array[i].imag());
+        array[i] = Complex(abs(array[i].real()) * SCALE, array[i].imag());
     }
 }
 
@@ -84,7 +90,7 @@ void drawRotatedRectangle(cv::Mat& image, const cv::Point &base, const cv::Size 
 
     cv::Point vertices[4] = { pointA, pointB, pointC, pointD };
 
-    cv::fillConvexPoly(image, vertices, 4, GREEN);
+    cv::fillConvexPoly(image, vertices, 4, COLOR);
 }
 
 void drawFFT() {
@@ -98,26 +104,20 @@ void drawFFT() {
     fftDataLock = true;
 
     auto center = cv::Point(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
-    auto centerCircleRadius = 100;
+    auto columns = BUFFER_SIZE / 2.0;
 
-    // auto height = 1000;
-    // auto angle = 0;
-    // auto rectangleCenter = offset(center, centerCircleRadius, angle);
-    // auto size = cv::Size(20, height);
-    // drawRotatedRectangle(output, rectangleCenter, size, angle);
-
-    for (int i = 10; i < BUFFER_SIZE / 2; i++) {
+    for (int i = 0; i < columns; i++) {
         auto height = fftData[i].real();
-        auto angle = (i - 10) / 118.0 * 360.0;
-        auto rectangleCenter = offset(center, centerCircleRadius, angle);
-        auto size = cv::Size(1, height);
-        drawRotatedRectangle(output, rectangleCenter, size, angle);
+        auto angle = i / columns * 360.0;
+        auto rectangleBase = offset(center, CENTER_CIRCLE_RADIUS, angle);
+        auto size = cv::Size(CIRCLE_COLUMN_WIDTH, height);
+        drawRotatedRectangle(output, rectangleBase, size, angle);
     }
 
-    for (int i = 0; i < BUFFER_SIZE / 2; i++) {
-        cv::Point point1(i * 10, WINDOW_HEIGHT);
-        cv::Point point2(i * 10 + 5, WINDOW_HEIGHT - fftData[i].real());
-        cv::rectangle(output, point1, point2, GREEN, cv::FILLED);
+    for (int i = 0; i < columns; i++) {
+        cv::Point point1(i * VERTICAL_COLUMN_WIDTH, WINDOW_HEIGHT);
+        cv::Point point2(i * VERTICAL_COLUMN_WIDTH + VERTICAL_COLUMN_SPACING, WINDOW_HEIGHT - fftData[i].real());
+        cv::rectangle(output, point1, point2, COLOR, cv::FILLED);
     }
 
     fftDataLock = false;
@@ -146,7 +146,7 @@ int paCallback(const void *inputBuffer, void *outputBuffer,
     if (!fftDataLock) {
         floatToComplex(inputBufferFloat32, framesPerBuffer, userDataCArray);
         fft(fftData);
-        convertToLogScale(fftData);
+        // convertToLogScale(fftData);
         absScale(fftData);
     }
 
