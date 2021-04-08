@@ -4,6 +4,7 @@
 #include <portaudio.h>
 #include "fft.hpp"
 
+#define LOG_BASE 10
 #define WINDOW_WIDTH 1920
 #define WINDOW_HEIGHT 1080
 #define SAMPLE_RATE 44100
@@ -16,11 +17,45 @@ static CArray fftData(BUFFER_SIZE);
 
 static bool fftDataLock = false;
 
+double logBase(double x) {
+    return log(x) / log(LOG_BASE);
+}
+
+double transformIndex(int i, int from, int to) {
+    auto logI = logBase(i);
+    auto result = logI;
+    return result / logBase(to) * to;
+}
+
+Complex interpolate(const CArray &array, double i) {
+    return array[floor(i)];
+}
+
+void copyCArray(const CArray &source, CArray &destination) {
+    if (source.size() != destination.size()) {
+        throw std::runtime_error("Source size is not equal to destination size. Cannot copy.");
+    }
+
+    for (int i = 0; i < source.size(); i++) {
+        destination[i] = source[i];
+    }
+}
+
 void convertToLogScale(CArray &array) {
+    CArray result(array.size());
+
     for (int i = 0; i < array.size(); i++) {
-        auto real = array[i].real();
-        auto logReal = log(abs(real - 1));
-        array[i] = Complex(logReal, array[i].imag());
+        auto transformedIndex = transformIndex(i, 0, array.size());
+        auto interpolated = interpolate(array, transformedIndex);
+        result[i] = interpolated;
+    }
+
+    copyCArray(result, array);
+}
+
+void absScale(CArray &array) {
+    for (int i = 0; i < array.size(); i++) {
+        array[i] = Complex(abs(array[i].real()) * 100, array[i].imag());
     }
 }
 
@@ -72,7 +107,7 @@ void drawFFT() {
     // drawRotatedRectangle(output, rectangleCenter, size, angle);
 
     for (int i = 10; i < BUFFER_SIZE / 2; i++) {
-        auto height = abs(fftData[i].real()) * 100;
+        auto height = fftData[i].real();
         auto angle = (i - 10) / 118.0 * 360.0;
         auto rectangleCenter = offset(center, centerCircleRadius, angle);
         auto size = cv::Size(1, height);
@@ -81,7 +116,7 @@ void drawFFT() {
 
     for (int i = 0; i < BUFFER_SIZE / 2; i++) {
         cv::Point point1(i * 10, WINDOW_HEIGHT);
-        cv::Point point2(i * 10 + 5, WINDOW_HEIGHT - abs(fftData[i].real()) * 100);
+        cv::Point point2(i * 10 + 5, WINDOW_HEIGHT - fftData[i].real());
         cv::rectangle(output, point1, point2, GREEN, cv::FILLED);
     }
 
@@ -111,7 +146,8 @@ int paCallback(const void *inputBuffer, void *outputBuffer,
     if (!fftDataLock) {
         floatToComplex(inputBufferFloat32, framesPerBuffer, userDataCArray);
         fft(fftData);
-        // convertToLogScale(fftData);
+        convertToLogScale(fftData);
+        absScale(fftData);
     }
 
     return 0;
@@ -156,10 +192,35 @@ void terminatePaStream() {
 }
 
 void test() {
-    CArray cArray({ 0, 0.0001, 3, 4, 5 });
+    auto transformedIndex = transformIndex(1, 1, 100);
+
+    std::cout << transformedIndex << std::endl;
+
+    transformedIndex = transformIndex(10, 1, 100);
+
+    std::cout << transformedIndex << std::endl;
+
+    transformedIndex = transformIndex(50, 1, 100);
+
+    std::cout << transformedIndex << std::endl;
+
+    transformedIndex = transformIndex(90, 1, 100);
+
+    std::cout << transformedIndex << std::endl;
+
+    CArray cArray1({ 0, 1, 2, 3, 4, 5 });
+    convertToLogScale(cArray1);
+
+    for (int i = 0; i < 6; i++) {
+        std::cout << cArray1[i] << " ";
+    }
+
+    std::cout << std::endl;
+
+    CArray cArray({ 1, 10, 100, 1000, 10000, 100000 });
     convertToLogScale(cArray);
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 6; i++) {
         std::cout << cArray[i] << " ";
     }
 
