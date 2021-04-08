@@ -16,6 +16,14 @@ static CArray fftData(BUFFER_SIZE);
 
 static bool fftDataLock = false;
 
+void convertToLogScale(CArray &array) {
+    for (int i = 0; i < array.size(); i++) {
+        auto real = array[i].real();
+        auto logReal = log(abs(real - 1));
+        array[i] = Complex(logReal, array[i].imag());
+    }
+}
+
 float degreesToRadians(float x) {
     return x * PI / 180.0;
 }
@@ -64,7 +72,7 @@ void drawFFT() {
     // drawRotatedRectangle(output, rectangleCenter, size, angle);
 
     for (int i = 10; i < BUFFER_SIZE / 2; i++) {
-        auto height = abs(fftData[i].real() * 200);
+        auto height = abs(fftData[i].real()) * 100;
         auto angle = (i - 10) / 118.0 * 360.0;
         auto rectangleCenter = offset(center, centerCircleRadius, angle);
         auto size = cv::Size(1, height);
@@ -73,7 +81,7 @@ void drawFFT() {
 
     for (int i = 0; i < BUFFER_SIZE / 2; i++) {
         cv::Point point1(i * 10, WINDOW_HEIGHT);
-        cv::Point point2(i * 10 + 5, WINDOW_HEIGHT - abs(fftData[i].real()) * 200);
+        cv::Point point2(i * 10 + 5, WINDOW_HEIGHT - abs(fftData[i].real()) * 100);
         cv::rectangle(output, point1, point2, GREEN, cv::FILLED);
     }
 
@@ -103,6 +111,7 @@ int paCallback(const void *inputBuffer, void *outputBuffer,
     if (!fftDataLock) {
         floatToComplex(inputBufferFloat32, framesPerBuffer, userDataCArray);
         fft(fftData);
+        // convertToLogScale(fftData);
     }
 
     return 0;
@@ -147,6 +156,15 @@ void terminatePaStream() {
 }
 
 void test() {
+    CArray cArray({ 0, 0.0001, 3, 4, 5 });
+    convertToLogScale(cArray);
+
+    for (int i = 0; i < 5; i++) {
+        std::cout << cArray[i] << " ";
+    }
+
+    std::cout << std::endl;
+
     float floatArray[5] = { 2.1, 3.0, 1.0, 0, 42.5};
     CArray complexArray(5);
 
