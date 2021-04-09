@@ -13,7 +13,7 @@
 #define WINDOW_WIDTH 1920
 #define WINDOW_HEIGHT 1080
 #define SAMPLE_RATE 44100
-#define BUFFER_SIZE 256
+#define BUFFER_SIZE 512
 #define ESCAPE_KEY 27
 #define GREEN cv::Scalar(0, 255, 0)
 #define COLOR GREEN
@@ -23,14 +23,22 @@ static CArray fftData(BUFFER_SIZE);
 
 static bool fftDataLock = false;
 
+void printFFTData() {
+    for (int i = 0; i < fftData.size(); i++) {
+        std::cout << fftData[i].real() << " ";
+    }
+
+    std::cout << std::endl;
+}
+
 double logBase(double x) {
     return log(x) / log(LOG_BASE);
 }
 
 double transformIndex(int i, int from, int to) {
     auto logI = logBase(i);
-    auto result = logI;
-    return result / logBase(to) * to;
+    auto result = to - logI / logBase(to) * to;
+    return result;
 }
 
 Complex interpolate(const CArray &array, double i) {
@@ -49,9 +57,10 @@ void copyCArray(const CArray &source, CArray &destination) {
 
 void convertToLogScale(CArray &array) {
     CArray result(array.size());
+    auto halfSize = array.size() / 2;
 
-    for (int i = 0; i < array.size(); i++) {
-        auto transformedIndex = transformIndex(i, 0, array.size());
+    for (int i = 0; i < halfSize; i++) {
+        auto transformedIndex = transformIndex(i, 0, halfSize);
         auto interpolated = interpolate(array, transformedIndex);
         result[i] = interpolated;
     }
@@ -114,9 +123,10 @@ void drawFFT() {
         drawRotatedRectangle(output, rectangleBase, size, angle);
     }
 
-    for (int i = 0; i < columns; i++) {
+    for (int i = 0; i < BUFFER_SIZE; i++) {
+        auto height = fftData[i].real();
         cv::Point point1(i * VERTICAL_COLUMN_WIDTH, WINDOW_HEIGHT);
-        cv::Point point2(i * VERTICAL_COLUMN_WIDTH + VERTICAL_COLUMN_SPACING, WINDOW_HEIGHT - fftData[i].real());
+        cv::Point point2(i * VERTICAL_COLUMN_WIDTH + VERTICAL_COLUMN_SPACING, WINDOW_HEIGHT - height);
         cv::rectangle(output, point1, point2, COLOR, cv::FILLED);
     }
 
@@ -146,8 +156,11 @@ int paCallback(const void *inputBuffer, void *outputBuffer,
     if (!fftDataLock) {
         floatToComplex(inputBufferFloat32, framesPerBuffer, userDataCArray);
         fft(fftData);
-        // convertToLogScale(fftData);
+        // printFFTData();
         absScale(fftData);
+        // printFFTData();
+        convertToLogScale(fftData);
+        // printFFTData();
     }
 
     return 0;
