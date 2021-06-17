@@ -37,6 +37,7 @@ double logBase(double x) {
 
 double transformIndex(int i, int from, int to) {
     auto logI = logBase(i);
+    // TODO: This generates right result but backwards (higher frequencies to the left)
     auto result = to - logI / logBase(to) * to;
     return result;
 }
